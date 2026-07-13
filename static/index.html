@@ -692,10 +692,22 @@ function drawPipeline() {
   if (hovered >= 0) {
     const nd = nodes[hovered];
     const lines = nd.detail.split('\n');
-    const tw = 170, th = 14 + lines.length * 16 + 8;
-    let tx = nd.x + nd.w/2 - tw/2;
+    const PAD = 10, LINE_H = 16, FONT_SZ = 10;
+
+    ctx.font = `bold ${FONT_SZ}px 'Courier New', monospace`;
+    const titleW = ctx.measureText(nd.label).width;
+
+    ctx.font = `${FONT_SZ}px ${getComputedStyle(document.body).fontFamily}`;
+    const maxLineW = Math.max(titleW, ...lines.map(l => ctx.measureText(l).width));
+
+    const tw = maxLineW + PAD * 2;
+    const th = PAD + FONT_SZ + 4 + lines.length * LINE_H + PAD;
+
+    let tx = nd.x + nd.w / 2 - tw / 2;
     tx = Math.max(4, Math.min(tx, W - tw - 4));
-    const ty = nd.y - th - 8;
+
+    /* show below node if tooltip would clip above canvas */
+    const ty = nd.y - th - 8 < 2 ? nd.y + nd.h + 8 : nd.y - th - 8;
 
     rrect(ctx, tx, ty, tw, th, 4);
     ctx.fillStyle = surf;
@@ -704,10 +716,16 @@ function drawPipeline() {
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    /* title */
     ctx.textAlign = 'left';
-    ctx.font = `9px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.font = `bold ${FONT_SZ}px 'Courier New', monospace`;
+    ctx.fillStyle = amber;
+    ctx.fillText(nd.label, tx + PAD, ty + PAD + FONT_SZ);
+
+    /* detail lines */
+    ctx.font = `${FONT_SZ}px ${getComputedStyle(document.body).fontFamily}`;
     ctx.fillStyle = textDim;
-    lines.forEach((l, i) => ctx.fillText(l, tx + 8, ty + 14 + i * 16));
+    lines.forEach((l, i) => ctx.fillText(l, tx + PAD, ty + PAD + FONT_SZ + 4 + (i + 1) * LINE_H));
   }
 }
 
