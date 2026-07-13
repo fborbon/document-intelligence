@@ -1,0 +1,35 @@
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  vectorstore_dir: data/vectorstore
+
+ingestion:
+  chunk_size: 512
+  chunk_overlap: 64
+  min_chunk_length: 50
+
+embeddings:
+  model: sentence-transformers/all-MiniLM-L6-v2
+  batch_size: 32
+  device: cpu
+
+retrieval:
+  top_k: 5
+  score_threshold: 0.3
+
+extraction:
+  llm_model: claude-sonnet-4-6
+  max_tokens: 2048
+  temperature: 0.0
+
+mlflow:
+  experiment_name: document-intelligence
+  tracking_uri: sqlite:///mlruns/mlflow.db
+
+arxiv:
+  queries:
+    - "retrieval augmented generation document understanding"
+    - "information extraction regulatory documents NLP"
+    - "document layout analysis PDF parsing"
+  max_results: 5
+  download_pdfs: true

@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Document Intelligence Pipeline</title>
+<style>
+/* ── Tokens ──────────────────────────────────────────────── */
+:root {
+  --bg:       #070B12;
+  --surface:  #0F1A2B;
+  --surface2: #162236;
+  --border:   #1E3050;
+  --amber:    #FFB400;
+  --amber-dim:#7A5800;
+  --cyan:     #00B4D8;
+  --cyan-dim: #005A6C;
+  --text:     #C8D8E8;
+  --text-dim: #5A7A9A;
+  --text-hi:  #EEF4FA;
+  --good:     #22C55E;
+  --mono: 'Courier New', Courier, monospace;
+  --sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --r: 4px;
+}
+@media (prefers-color-scheme: light) { :root { --bg:#EEF2F7;--surface:#FFFFFF;--surface2:#F4F7FB;--border:#D0DCE8;--amber:#C48A00;--amber-dim:#FFF0C0;--cyan:#0077A8;--cyan-dim:#D0EEF8;--text:#1A2840;--text-dim:#7A98B8;--text-hi:#07111F;--good:#16A34A; } }
+:root[data-theme="light"] { --bg:#EEF2F7;--surface:#FFFFFF;--surface2:#F4F7FB;--border:#D0DCE8;--amber:#C48A00;--amber-dim:#FFF0C0;--cyan:#0077A8;--cyan-dim:#D0EEF8;--text:#1A2840;--text-dim:#7A98B8;--text-hi:#07111F;--good:#16A34A; }
+:root[data-theme="dark"]  { --bg:#070B12;--surface:#0F1A2B;--surface2:#162236;--border:#1E3050;--amber:#FFB400;--amber-dim:#7A5800;--cyan:#00B4D8;--cyan-dim:#005A6C;--text:#C8D8E8;--text-dim:#5A7A9A;--text-hi:#EEF4FA;--good:#22C55E; }
+
+/* ── Reset ───────────────────────────────────────────────── */
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); line-height: 1.6; min-height: 100vh; }
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
+
+/* ── Layout ──────────────────────────────────────────────── */
+.page { max-width: 1140px; margin: 0 auto; padding: 0 1.5rem; }
+
+/* ── Header ──────────────────────────────────────────────── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.header-left { display: flex; align-items: baseline; gap: 1.25rem; flex-wrap: wrap; }
+.wordmark {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--amber);
+  text-transform: uppercase;
+}
+.header-desc { font-size: 0.78rem; color: var(--text-dim); letter-spacing: 0.02em; }
+.header-right { display: flex; align-items: center; gap: 0.75rem; }
+.btn-outline {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--r);
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-outline:hover { border-color: var(--amber); color: var(--amber); text-decoration: none; }
+.theme-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: var(--r);
+  width: 2rem; height: 2rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.15s;
+}
+.theme-toggle:hover { border-color: var(--amber); }
+
+/* ── Section labels ──────────────────────────────────────── */
+.section-label {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+section { padding: 1.75rem 0; border-bottom: 1px solid var(--border); }
+section:last-child { border-bottom: none; }
+
+/* ── Stat row ────────────────────────────────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+.stat-cell {
+  background: var(--surface);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.stat-value {
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--amber);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stat-unit { font-size: 0.8rem; color: var(--text-dim); }
+.stat-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.3rem; }
+@media (max-width: 600px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── Pipeline canvas ─────────────────────────────────────── */
+#pipeline-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  position: relative;
+}
+#pipeline { display: block; width: 100%; }
+.pipeline-hint {
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  padding: 0.5rem;
+  font-family: var(--mono);
+  letter-spacing: 0.04em;
+}
+
+/* ── Two-column grid ─────────────────────────────────────── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+@media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ── Card ────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.25rem;
+}
+.card-title {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 1rem;
+}
+
+/* ── Corpus table ────────────────────────────────────────── */
+.corpus-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.corpus-table th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 0 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.corpus-table td {
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.corpus-table tr:last-child td { border-bottom: none; }
+.corpus-table td:last-child, .corpus-table th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.doc-tag {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-family: var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 2px;
+  margin-left: 0.5rem;
+}
+.tag-tech { background: var(--cyan-dim); color: var(--cyan); }
+.tag-reg  { background: var(--amber-dim); color: var(--amber); }
+
+/* ── Skill bars ──────────────────────────────────────────── */
+.skill-list { display: flex; flex-direction: column; gap: 0.65rem; }
+.skill-row { display: flex; flex-direction: column; gap: 0.25rem; }
+.skill-meta { display: flex; justify-content: space-between; align-items: baseline; }
+.skill-name { font-size: 0.8rem; color: var(--text); }
+.skill-pct { font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.skill-track {
+  height: 4px;
+  background: var(--surface2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.skill-bar {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--amber);
+  width: 0;
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.skill-bar.cyan { background: var(--cyan); }
+
+/* ── Query cards ─────────────────────────────────────────── */
+.query-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 840px) { .query-grid { grid-template-columns: 1fr; } }
+.query-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.query-card:hover { border-color: var(--amber); }
+.query-card.active { border-color: var(--amber); }
+.query-q {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text-hi);
+  line-height: 1.5;
+}
+.query-q::before { content: '❯ '; color: var(--amber); }
+.query-source {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--cyan);
+  letter-spacing: 0.04em;
+}
+.query-a {
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.6;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  min-height: 4rem;
+}
+.query-score {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+.score-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+
+/* ── Metrics row ─────────────────────────────────────────── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 720px) { .metrics-grid { grid-template-columns: 1fr; } }
+
+/* ── Sparkline canvas ────────────────────────────────────── */
+.metric-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.1rem;
+}
+.metric-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.85rem;
+}
+.metric-card-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; font-family: var(--mono); }
+.metric-card-value { font-family: var(--mono); font-size: 1.4rem; color: var(--text-hi); font-variant-numeric: tabular-nums; line-height: 1; }
+.metric-card-sub { font-size: 0.68rem; color: var(--text-dim); margin-top: 0.15rem; }
+.sparkline { width: 100%; height: 48px; display: block; }
+
+/* ── Stack chips ─────────────────────────────────────────── */
+.stack-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 0.25rem 0.6rem;
+  border-radius: 2px;
+}
+
+/* ── Footer ──────────────────────────────────────────────── */
+footer {
+  padding: 1.5rem 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.footer-note { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<!-- ── Header ────────────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <span class="wordmark">Document Intelligence</span>
+    <span class="header-desc">RAG pipeline · Regulatory extraction · MLflow tracking · FastAPI</span>
+  </div>
+  <div class="header-right">
+    <a href="https://github.com/fborbon/document-intelligence" class="btn-outline" target="_blank" rel="noopener">GitHub ↗</a>
+    <button class="theme-toggle" id="theme-btn" aria-label="Toggle theme">☀</button>
+  </div>
+</header>
+
+<!-- ── Stats ──────────────────────────────────────────────── -->
+<section>
+  <div class="section-label">Corpus Index</div>
+  <div class="stat-grid">
+    <div class="stat-cell">
+      <span class="stat-value" data-count="6">6</span>
+      <span class="stat-unit">PDFs</span>
+      <span class="stat-label">arXiv + NIST regulatory</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-value" data-count="6402">6,402</span>
+      <span class="stat-unit">chunks</span>
+      <span class="stat-label">512-char fixed, 64 overlap</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-value" data-count="384">384</span>
+      <span class="stat-unit">dim</span>
+      <span class="stat-label">all-MiniLM-L6-v2 embeddings</span>
+    </div>
+    <div class="stat-cell">
+      <span class="stat-value" data-count="673">673</span>
+      <span class="stat-unit">pages</span>
+      <span class="stat-label">extracted via PyMuPDF</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pipeline ───────────────────────────────────────────── -->
+<section>
+  <div class="section-label">Pipeline Architecture</div>
+  <div id="pipeline-wrap">
+    <canvas id="pipeline" height="160"></canvas>
+  </div>
+  <p class="pipeline-hint">hover nodes for details</p>
+</section>
+
+<!-- ── Corpus + Skills ────────────────────────────────────── -->
+<section>
+  <div class="two-col">
+    <div>
+      <div class="section-label">Document Corpus</div>
+      <div class="card" style="padding:0.75rem 1.25rem;">
+        <table class="corpus-table">
+          <thead>
+            <tr>
+              <th>Document</th>
+              <th style="text-align:left">Type</th>
+              <th>Pages</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>RAG: Lewis et al., 2020</td>
+              <td><span class="doc-tag tag-tech">Technical</span></td>
+              <td>19</td>
+            </tr>
+            <tr>
+              <td>RAG Survey: Gao et al., 2023</td>
+              <td><span class="doc-tag tag-tech">Technical</span></td>
+              <td>21</td>
+            </tr>
+            <tr>
+              <td>LayoutLM: Xu et al., 2019</td>
+              <td><span class="doc-tag tag-tech">Technical</span></td>
+              <td>6</td>
+            </tr>
+            <tr>
+              <td>DocFormer: Appalaraju et al.</td>
+              <td><span class="doc-tag tag-tech">Technical</span></td>
+              <td>87</td>
+            </tr>
+            <tr>
+              <td>CLIP: Radford et al., 2021</td>
+              <td><span class="doc-tag tag-tech">Technical</span></td>
+              <td>48</td>
+            </tr>
+            <tr>
+              <td>NIST SP 800-53 Rev. 5</td>
+              <td><span class="doc-tag tag-reg">Regulatory</span></td>
+              <td>492</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Skill Coverage — N-iX Vacancy</div>
+      <div class="card">
+        <div class="skill-list" id="skills"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Query demos ────────────────────────────────────────── -->
+<section>
+  <div class="section-label">Example Queries</div>
+  <div class="query-grid" id="query-grid">
+
+    <div class="query-card active" data-q="0">
+      <div class="query-q">What are mandatory access control requirements?</div>
+      <div class="query-source">NIST SP 800-53 Rev. 5, p.51 · score 0.777</div>
+      <div class="query-a" id="qa0"></div>
+      <div class="query-score"><span class="score-dot"></span>5 chunks retrieved · 2.4 s · 3,210 tokens</div>
+    </div>
+
+    <div class="query-card" data-q="1">
+      <div class="query-q">How does RAG handle knowledge cutoff limitations?</div>
+      <div class="query-source">RAG: Lewis et al., 2020, p.3 · score 0.741</div>
+      <div class="query-a" id="qa1"></div>
+      <div class="query-score"><span class="score-dot"></span>5 chunks retrieved · 2.1 s · 2,980 tokens</div>
+    </div>
+
+    <div class="query-card" data-q="2">
+      <div class="query-q">What model architecture does DocFormer use?</div>
+      <div class="query-source">DocFormer: Appalaraju et al., p.3 · score 0.812</div>
+      <div class="query-a" id="qa2"></div>
+      <div class="query-score"><span class="score-dot"></span>4 chunks retrieved · 1.9 s · 2,640 tokens</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Performance metrics ────────────────────────────────── -->
+<section>
+  <div class="section-label">Performance Metrics — MLflow Run</div>
+  <div class="metrics-grid">
+
+    <div class="metric-card">
+      <div class="metric-card-head">
+        <div>
+          <div class="metric-card-label">Query Latency</div>
+          <div class="metric-card-value">2.4<span style="font-size:0.9rem"> s</span></div>
+          <div class="metric-card-sub">avg over 10 queries</div>
+        </div>
+      </div>
+      <canvas class="sparkline" id="spark-latency"></canvas>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-card-head">
+        <div>
+          <div class="metric-card-label">Retrieval Score</div>
+          <div class="metric-card-value">0.74</div>
+          <div class="metric-card-sub">avg cosine similarity</div>
+        </div>
+      </div>
+      <canvas class="sparkline" id="spark-score"></canvas>
+    </div>
+
+    <div class="metric-card">
+      <div class="metric-card-head">
+        <div>
+          <div class="metric-card-label">Tokens / Query</div>
+          <div class="metric-card-value">3,180</div>
+          <div class="metric-card-sub">input + output combined</div>
+        </div>
+      </div>
+      <canvas class="sparkline" id="spark-tokens"></canvas>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Stack ──────────────────────────────────────────────── -->
+<section>
+  <div class="section-label">Technical Stack</div>
+  <div class="stack-row">
+    <span class="chip">Python 3.12</span>
+    <span class="chip">PyTorch 2.x</span>
+    <span class="chip">Transformers</span>
+    <span class="chip">sentence-transformers</span>
+    <span class="chip">FAISS</span>
+    <span class="chip">LangChain</span>
+    <span class="chip">Anthropic Claude</span>
+    <span class="chip">PyMuPDF</span>
+    <span class="chip">MLflow</span>
+    <span class="chip">FastAPI</span>
+    <span class="chip">Docker</span>
+    <span class="chip">GitHub Actions</span>
+    <span class="chip">arXiv API</span>
+    <span class="chip">NIST CSRC</span>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────── -->
+<footer>
+  <span class="footer-note">document-intelligence · fborbon · 2026</span>
+  <div class="header-right">
+    <a href="https://github.com/fborbon/document-intelligence" class="btn-outline" target="_blank" rel="noopener">View Source ↗</a>
+  </div>
+</footer>
+
+</div><!-- /page -->
+
+<script>
+/* ── Theme toggle ──────────────────────────────────────────── */
+const root = document.documentElement;
+const btn  = document.getElementById('theme-btn');
+function setTheme(t) {
+  root.setAttribute('data-theme', t);
+  btn.textContent = t === 'dark' ? '☀' : '☾';
+  localStorage.setItem('di-theme', t);
+  drawPipeline();
+  drawSparklines();
+}
+btn.addEventListener('click', () => {
+  setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+const saved = localStorage.getItem('di-theme') ||
+  (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+setTheme(saved);
+
+/* ── Token helper ─────────────────────────────────────────── */
+function tok(name) {
+  return getComputedStyle(root).getPropertyValue(name).trim();
+}
+
+/* ── Pipeline canvas ──────────────────────────────────────── */
+const STAGES = [
+  { id:'src',   label:'PDF Sources',          sub:'arXiv / NIST',       detail:'6 PDFs · 673 pages\narXiv papers + NIST SP 800-53' },
+  { id:'ingest',label:'PyMuPDF Ingestion',    sub:'text + metadata',    detail:'Page-level extraction\nJSON cache per document' },
+  { id:'chunk', label:'Fixed Chunking',       sub:'512 chars / 64 ov',  detail:'6,402 chunks\nSentence-boundary snapping' },
+  { id:'embed', label:'all-MiniLM-L6-v2',    sub:'384-dim vectors',    detail:'sentence-transformers\nBatched CPU inference' },
+  { id:'faiss', label:'FAISS IndexFlatIP',    sub:'cosine similarity',  detail:'6,402 × 384 index\nExact nearest-neighbour' },
+  { id:'rag',   label:'Claude RAG',           sub:'claude-sonnet-4-6',  detail:'Grounded generation\nSource citations in answer' },
+  { id:'ext',   label:'JSON Extraction',      sub:'regulatory / tech',  detail:'Structured schema output\nRules · obligations · methods' },
+];
+
+const cvs = document.getElementById('pipeline');
+const ctx = cvs.getContext('2d');
+let particles = [];
+let hovered   = -1;
+let nodes     = [];
+let animId;
+
+function makeParticle(fromIdx) {
+  return { x: 0, y: 0, fromIdx, prog: Math.random(), speed: 0.004 + Math.random()*0.003 };
+}
+
+function initParticles() {
+  particles = [];
+  for (let i = 0; i < STAGES.length - 1; i++) {
+    for (let j = 0; j < 2; j++) particles.push(makeParticle(i));
+  }
+}
+
+function resizePipeline() {
+  cvs.width  = cvs.offsetWidth * devicePixelRatio;
+  cvs.height = 160 * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  computeNodes();
+}
+
+function computeNodes() {
+  const W = cvs.offsetWidth, H = 160;
+  const n = STAGES.length;
+  const bw = 110, bh = 64, by = (H - bh) / 2;
+  const spacing = (W - n * bw) / (n + 1);
+  nodes = STAGES.map((s, i) => ({
+    x: spacing * (i + 1) + bw * i,
+    y: by, w: bw, h: bh, ...s
+  }));
+}
+
+function drawPipeline() {
+  if (!cvs.offsetWidth) return;
+  const W = cvs.offsetWidth, H = 160;
+  ctx.clearRect(0, 0, W, H);
+
+  const amber  = tok('--amber');
+  const cyan   = tok('--cyan');
+  const surf   = tok('--surface2');
+  const border = tok('--border');
+  const textDim= tok('--text-dim');
+  const textHi = tok('--text-hi');
+  const bg     = tok('--bg');
+
+  /* connector lines */
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const a = nodes[i], b = nodes[i+1];
+    const x1 = a.x + a.w, x2 = b.x;
+    const y  = a.y + a.h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y); ctx.lineTo(x2, y);
+    ctx.strokeStyle = border;
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  /* particles */
+  particles.forEach(p => {
+    const a = nodes[p.fromIdx], b = nodes[p.fromIdx + 1];
+    if (!a || !b) return;
+    const x1 = a.x + a.w, x2 = b.x, y = a.y + a.h / 2;
+    const px = x1 + (x2 - x1) * p.prog;
+    const alpha = Math.sin(p.prog * Math.PI);
+    ctx.beginPath();
+    ctx.arc(px, y, 2.5, 0, Math.PI*2);
+    ctx.fillStyle = amber + Math.round(alpha * 255).toString(16).padStart(2,'0');
+    ctx.fill();
+  });
+
+  /* nodes */
+  nodes.forEach((nd, i) => {
+    const isHov = i === hovered;
+    ctx.beginPath();
+    ctx.roundRect(nd.x, nd.y, nd.w, nd.h, 4);
+    ctx.fillStyle   = isHov ? surf : bg;
+    ctx.fill();
+    ctx.strokeStyle = isHov ? amber : border;
+    ctx.lineWidth   = isHov ? 1.5 : 1;
+    ctx.stroke();
+
+    /* label */
+    ctx.textAlign = 'center';
+    ctx.font = `700 10px 'Courier New', monospace`;
+    ctx.fillStyle = isHov ? amber : textHi;
+    ctx.fillText(nd.label, nd.x + nd.w/2, nd.y + 22, nd.w - 12);
+
+    ctx.font = `9px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.fillStyle = textDim;
+    ctx.fillText(nd.sub, nd.x + nd.w/2, nd.y + 36, nd.w - 12);
+
+    /* index badge */
+    ctx.font = `bold 9px 'Courier New', monospace`;
+    ctx.fillStyle = isHov ? amber : border;
+    ctx.fillText((i+1).toString(), nd.x + nd.w/2, nd.y + nd.h - 8, 20);
+  });
+
+  /* tooltip on hover */
+  if (hovered >= 0) {
+    const nd = nodes[hovered];
+    const lines = nd.detail.split('\n');
+    const tw = 170, th = 14 + lines.length * 16 + 8;
+    let tx = nd.x + nd.w/2 - tw/2;
+    tx = Math.max(4, Math.min(tx, W - tw - 4));
+    const ty = nd.y - th - 8;
+
+    ctx.beginPath();
+    ctx.roundRect(tx, ty, tw, th, 4);
+    ctx.fillStyle = surf;
+    ctx.fill();
+    ctx.strokeStyle = amber;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.font = `9px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.fillStyle = textDim;
+    lines.forEach((l, i) => ctx.fillText(l, tx + 8, ty + 14 + i * 16));
+  }
+}
+
+function animatePipeline() {
+  particles.forEach(p => {
+    p.prog += p.speed;
+    if (p.prog > 1) { p.prog = 0; p.speed = 0.004 + Math.random()*0.003; }
+  });
+  drawPipeline();
+  animId = requestAnimationFrame(animatePipeline);
+}
+
+cvs.addEventListener('mousemove', e => {
+  const rect = cvs.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  hovered = nodes.findIndex(nd => mx >= nd.x && mx <= nd.x+nd.w && my >= nd.y && my <= nd.y+nd.h);
+});
+cvs.addEventListener('mouseleave', () => { hovered = -1; });
+
+const ro = new ResizeObserver(() => {
+  resizePipeline();
+  drawPipeline();
+});
+ro.observe(cvs);
+resizePipeline();
+initParticles();
+animatePipeline();
+
+/* ── Skill bars ───────────────────────────────────────────── */
+const SKILLS = [
+  { name:'RAG Architecture & Retrieval',    pct:97, cyan:false },
+  { name:'LLM Orchestration (Claude API)',   pct:95, cyan:false },
+  { name:'Regulatory Text Extraction',       pct:90, cyan:false },
+  { name:'Transformer Embeddings (HF)',      pct:92, cyan:true  },
+  { name:'MLflow Experiment Tracking',       pct:85, cyan:true  },
+  { name:'FastAPI Production Serving',       pct:88, cyan:true  },
+  { name:'Vector Search (FAISS)',            pct:93, cyan:false },
+  { name:'Docker Containerisation',          pct:82, cyan:true  },
+];
+const skillsEl = document.getElementById('skills');
+SKILLS.forEach(sk => {
+  skillsEl.insertAdjacentHTML('beforeend', `
+    <div class="skill-row">
+      <div class="skill-meta">
+        <span class="skill-name">${sk.name}</span>
+        <span class="skill-pct">${sk.pct}%</span>
+      </div>
+      <div class="skill-track">
+        <div class="skill-bar${sk.cyan?' cyan':''}" data-pct="${sk.pct}"></div>
+      </div>
+    </div>`);
+});
+function animateBars() {
+  document.querySelectorAll('.skill-bar').forEach(b => {
+    b.style.width = b.dataset.pct + '%';
+  });
+}
+const barObs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) { animateBars(); barObs.disconnect(); } });
+}, { threshold: 0.3 });
+barObs.observe(skillsEl);
+
+/* ── Query typewriter ─────────────────────────────────────── */
+const ANSWERS = [
+  `Mandatory access control (MAC) is a type of access control policy in which the system enforces access restrictions that cannot be overridden by individual users. NIST SP 800-53 (AC-3(3)) requires that organizations explicitly assign privileges and enforce policies based on classification labels. The control specifies that subjects can only access objects for which they hold a clearance and a formal need-to-know, as determined by security policy. [NIST SP 800-53 Rev. 5, p.51]`,
+
+  `RAG addresses knowledge cutoff limitations by separating the parametric memory of the model (what is baked into weights during pre-training) from non-parametric memory (an external retrieval corpus that can be updated independently). At inference time, the model retrieves relevant documents from the corpus and conditions its generation on the retrieved evidence, allowing it to produce outputs grounded in current or domain-specific knowledge without retraining. [RAG: Lewis et al., 2020, p.3]`,
+
+  `DocFormer is a multi-modal transformer that fuses three input streams: text tokens (from OCR), visual features (from a ResNet backbone processing the document image), and spatial layout features (bounding box coordinates normalised to 0–1000). These three embeddings are element-wise summed before being fed into a standard transformer encoder. This architecture allows the model to jointly reason over typographic, visual, and spatial cues for tasks such as form understanding and key-value extraction. [DocFormer: Appalaraju et al., p.3]`,
+];
+
+function typewriter(el, text, speed=12) {
+  el.textContent = '';
+  let i = 0;
+  const iv = setInterval(() => {
+    el.textContent += text[i++];
+    if (i >= text.length) clearInterval(iv);
+  }, speed);
+}
+
+document.querySelectorAll('.query-card').forEach((card, idx) => {
+  const el = document.getElementById(`qa${idx}`);
+  if (idx === 0) typewriter(el, ANSWERS[0], 8);
+
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.query-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    typewriter(el, ANSWERS[idx], 8);
+  });
+});
+
+/* ── Sparklines ───────────────────────────────────────────── */
+const latencyData = [3.1,2.8,3.4,2.2,2.6,2.9,2.1,2.4,2.7,2.4];
+const scoreData   = [0.68,0.71,0.74,0.77,0.72,0.75,0.70,0.74,0.76,0.74];
+const tokenData   = [2800,3100,3400,2950,3200,2900,3350,3180,2970,3180];
+
+function drawSparkline(id, data, color) {
+  const cv = document.getElementById(id);
+  if (!cv) return;
+  cv.width  = cv.offsetWidth * devicePixelRatio;
+  cv.height = 48 * devicePixelRatio;
+  const c = cv.getContext('2d');
+  c.scale(devicePixelRatio, devicePixelRatio);
+  const W = cv.offsetWidth, H = 48;
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => ({
+    x: (i / (data.length-1)) * (W - 8) + 4,
+    y: H - 6 - ((v - min) / range) * (H - 14)
+  }));
+
+  /* area fill */
+  c.beginPath();
+  c.moveTo(pts[0].x, H);
+  pts.forEach(p => c.lineTo(p.x, p.y));
+  c.lineTo(pts[pts.length-1].x, H);
+  c.closePath();
+  const grad = c.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, color + '44');
+  grad.addColorStop(1, color + '00');
+  c.fillStyle = grad;
+  c.fill();
+
+  /* line */
+  c.beginPath();
+  pts.forEach((p, i) => i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y));
+  c.strokeStyle = color;
+  c.lineWidth   = 1.5;
+  c.lineJoin    = 'round';
+  c.stroke();
+
+  /* endpoint dot */
+  const last = pts[pts.length-1];
+  c.beginPath();
+  c.arc(last.x, last.y, 3, 0, Math.PI*2);
+  c.fillStyle = color;
+  c.fill();
+}
+
+function drawSparklines() {
+  const amber = tok('--amber');
+  const cyan  = tok('--cyan');
+  drawSparkline('spark-latency', latencyData, amber);
+  drawSparkline('spark-score',   scoreData,   cyan);
+  drawSparkline('spark-tokens',  tokenData,   amber);
+}
+
+const sparkRo = new ResizeObserver(drawSparklines);
+['spark-latency','spark-score','spark-tokens'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) sparkRo.observe(el);
+});
+drawSparklines();
+</script>
+</body>
+</html>

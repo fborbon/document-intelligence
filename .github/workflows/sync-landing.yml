@@ -1,0 +1,50 @@
+# Required GitHub secrets:
+#   GH_PAT      — personal access token with repo write scope on forwardforecasting-landing
+#   EC2_SSH_KEY — private key for ubuntu@<EC2_HOST>
+#   EC2_HOST    — EC2 host serving forwardforecasting.eu
+
+name: Deploy demo to forwardforecasting.eu
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'static/index.html'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Sync demo → Landing repo + EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: fborbon/forwardforecasting-landing
+          token: ${{ secrets.GH_PAT }}
+          path: landing
+
+      - name: Sync to Landing repo
+        run: |
+          mkdir -p landing/document-intelligence
+          cp static/index.html landing/document-intelligence/index.html
+          cd landing
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add document-intelligence/index.html
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "sync: update document-intelligence demo from source repo"
+          git push
+
+      - name: Deploy to EC2
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.EC2_HOST }} \
+            "mkdir -p /var/www/forwardforecasting/document-intelligence"
+          scp -i ~/.ssh/deploy_key static/index.html \
+            ubuntu@${{ secrets.EC2_HOST }}:/var/www/forwardforecasting/document-intelligence/index.html
