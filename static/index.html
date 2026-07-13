@@ -603,10 +603,12 @@ function initParticles() {
   }
 }
 
+const CVS_H = 320;
+
 function computeNodes() {
-  const W = cvs.offsetWidth, H = 160;
+  const W = cvs.offsetWidth;
   const n = STAGES.length;
-  const bw = 110, bh = 64, by = (H - bh) / 2;
+  const bw = 110, bh = 64, by = 16;
   const spacing = (W - n * bw) / (n + 1);
   nodes = STAGES.map((s, i) => ({
     x: spacing * (i + 1) + bw * i,
@@ -618,14 +620,14 @@ function resizePipeline() {
   const w = cvs.offsetWidth;
   if (!w) return;
   cvs.width  = w * devicePixelRatio;
-  cvs.height = 160 * devicePixelRatio;
+  cvs.height = CVS_H * devicePixelRatio;
   ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
   computeNodes();
 }
 
 function drawPipeline() {
   if (!nodes.length) return;
-  const W = cvs.offsetWidth, H = 160;
+  const W = cvs.offsetWidth, H = CVS_H;
   ctx.clearRect(0, 0, W, H);
 
   const amber   = tok('--amber');
@@ -706,8 +708,8 @@ function drawPipeline() {
     let tx = nd.x + nd.w / 2 - tw / 2;
     tx = Math.max(4, Math.min(tx, W - tw - 4));
 
-    /* show below node if tooltip would clip above canvas */
-    const ty = nd.y - th - 8 < 2 ? nd.y + nd.h + 8 : nd.y - th - 8;
+    /* always show below nodes */
+    const ty = nd.y + nd.h + 10;
 
     rrect(ctx, tx, ty, tw, th, 4);
     ctx.fillStyle = surf;
