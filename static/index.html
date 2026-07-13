@@ -323,6 +323,20 @@ footer {
   gap: 0.75rem;
 }
 .footer-note { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); }
+
+/* ── Intro ───────────────────────────────────────────────── */
+.intro-p {
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--text);
+  max-width: 78ch;
+}
+.intro-p em {
+  font-style: normal;
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
 </style>
 </head>
 <body>
@@ -340,6 +354,16 @@ footer {
     <button class="theme-toggle" id="theme-btn" aria-label="Toggle theme">☀</button>
   </div>
 </header>
+
+<!-- ── Intro ──────────────────────────────────────────────── -->
+<section style="padding-bottom:1.25rem;">
+  <p class="intro-p">
+    This pipeline answers natural-language questions over a corpus of technical research papers and regulatory documents — without retraining any model. PDFs are parsed page by page with <em>PyMuPDF</em>, split into overlapping fixed-size chunks, and encoded into 384-dimensional vectors using <em>sentence-transformers</em> (all-MiniLM-L6-v2). Those vectors are stored in a <em>FAISS</em> index for sub-millisecond nearest-neighbour retrieval.
+  </p>
+  <p class="intro-p" style="margin-top:0.75rem;">
+    At query time the question is embedded with the same model, the top-<em>k</em> most semantically similar chunks are retrieved, and the assembled context is passed to <em>Claude</em> to generate a grounded, source-cited answer. A second extraction path prompts Claude with a typed JSON schema — regulatory or technical — to pull structured rules, obligations, methods, and metrics directly from the retrieved passages. Every run is tracked with <em>MLflow</em> (latency, token cost, retrieval score) and served through a <em>FastAPI</em> REST layer ready for containerised deployment.
+  </p>
+</section>
 
 <!-- ── Stats ──────────────────────────────────────────────── -->
 <section>
