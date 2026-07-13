@@ -535,15 +535,36 @@ footer {
 </div><!-- /page -->
 
 <script>
-/* ── Theme toggle ──────────────────────────────────────────── */
+/* ── Token helper ─────────────────────────────────────────── */
 const root = document.documentElement;
-const btn  = document.getElementById('theme-btn');
+function tok(name) {
+  return getComputedStyle(root).getPropertyValue(name).trim();
+}
+
+/* ── roundRect polyfill ───────────────────────────────────── */
+function rrect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.lineTo(x + w - r, y);
+  c.arcTo(x + w, y,     x + w, y + r,     r);
+  c.lineTo(x + w, y + h - r);
+  c.arcTo(x + w, y + h, x + w - r, y + h, r);
+  c.lineTo(x + r, y + h);
+  c.arcTo(x,     y + h, x,     y + h - r, r);
+  c.lineTo(x,     y + r);
+  c.arcTo(x,     y,     x + r, y,         r);
+  c.closePath();
+}
+
+/* ── Theme toggle ──────────────────────────────────────────── */
+const btn = document.getElementById('theme-btn');
+let pipelineReady = false;
+
 function setTheme(t) {
   root.setAttribute('data-theme', t);
   btn.textContent = t === 'dark' ? '☀' : '☾';
   localStorage.setItem('di-theme', t);
-  drawPipeline();
-  drawSparklines();
+  if (pipelineReady) { drawPipeline(); drawSparklines(); }
 }
 btn.addEventListener('click', () => {
   setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
@@ -552,45 +573,31 @@ const saved = localStorage.getItem('di-theme') ||
   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 setTheme(saved);
 
-/* ── Token helper ─────────────────────────────────────────── */
-function tok(name) {
-  return getComputedStyle(root).getPropertyValue(name).trim();
-}
-
 /* ── Pipeline canvas ──────────────────────────────────────── */
 const STAGES = [
-  { id:'src',   label:'PDF Sources',          sub:'arXiv / NIST',       detail:'6 PDFs · 673 pages\narXiv papers + NIST SP 800-53' },
-  { id:'ingest',label:'PyMuPDF Ingestion',    sub:'text + metadata',    detail:'Page-level extraction\nJSON cache per document' },
-  { id:'chunk', label:'Fixed Chunking',       sub:'512 chars / 64 ov',  detail:'6,402 chunks\nSentence-boundary snapping' },
-  { id:'embed', label:'all-MiniLM-L6-v2',    sub:'384-dim vectors',    detail:'sentence-transformers\nBatched CPU inference' },
-  { id:'faiss', label:'FAISS IndexFlatIP',    sub:'cosine similarity',  detail:'6,402 × 384 index\nExact nearest-neighbour' },
-  { id:'rag',   label:'Claude RAG',           sub:'claude-sonnet-4-6',  detail:'Grounded generation\nSource citations in answer' },
-  { id:'ext',   label:'JSON Extraction',      sub:'regulatory / tech',  detail:'Structured schema output\nRules · obligations · methods' },
+  { id:'src',   label:'PDF Sources',       sub:'arXiv / NIST',      detail:'6 PDFs · 673 pages\narXiv papers + NIST SP 800-53' },
+  { id:'ingest',label:'PyMuPDF Ingest',    sub:'text + metadata',   detail:'Page-level extraction\nJSON cache per document' },
+  { id:'chunk', label:'Fixed Chunking',    sub:'512 chars / 64 ov', detail:'6,402 chunks\nSentence-boundary snapping' },
+  { id:'embed', label:'MiniLM-L6-v2',     sub:'384-dim vectors',   detail:'sentence-transformers\nBatched CPU inference' },
+  { id:'faiss', label:'FAISS IndexFlatIP', sub:'cosine similarity', detail:'6,402 × 384 index\nExact nearest-neighbour' },
+  { id:'rag',   label:'Claude RAG',        sub:'claude-sonnet-4-6', detail:'Grounded generation\nSource citations in answer' },
+  { id:'ext',   label:'JSON Extraction',   sub:'regulatory / tech', detail:'Structured schema output\nRules · obligations · methods' },
 ];
 
 const cvs = document.getElementById('pipeline');
 const ctx = cvs.getContext('2d');
-let particles = [];
-let hovered   = -1;
-let nodes     = [];
-let animId;
+let particles = [], hovered = -1, nodes = [];
 
 function makeParticle(fromIdx) {
-  return { x: 0, y: 0, fromIdx, prog: Math.random(), speed: 0.004 + Math.random()*0.003 };
+  return { fromIdx, prog: Math.random(), speed: 0.004 + Math.random() * 0.003 };
 }
 
 function initParticles() {
   particles = [];
   for (let i = 0; i < STAGES.length - 1; i++) {
-    for (let j = 0; j < 2; j++) particles.push(makeParticle(i));
+    particles.push(makeParticle(i));
+    particles.push(makeParticle(i));
   }
-}
-
-function resizePipeline() {
-  cvs.width  = cvs.offsetWidth * devicePixelRatio;
-  cvs.height = 160 * devicePixelRatio;
-  ctx.scale(devicePixelRatio, devicePixelRatio);
-  computeNodes();
 }
 
 function computeNodes() {
@@ -604,28 +611,35 @@ function computeNodes() {
   }));
 }
 
+function resizePipeline() {
+  const w = cvs.offsetWidth;
+  if (!w) return;
+  cvs.width  = w * devicePixelRatio;
+  cvs.height = 160 * devicePixelRatio;
+  ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  computeNodes();
+}
+
 function drawPipeline() {
-  if (!cvs.offsetWidth) return;
+  if (!nodes.length) return;
   const W = cvs.offsetWidth, H = 160;
   ctx.clearRect(0, 0, W, H);
 
-  const amber  = tok('--amber');
-  const cyan   = tok('--cyan');
-  const surf   = tok('--surface2');
-  const border = tok('--border');
-  const textDim= tok('--text-dim');
-  const textHi = tok('--text-hi');
-  const bg     = tok('--bg');
+  const amber   = tok('--amber');
+  const surf    = tok('--surface2');
+  const border  = tok('--border');
+  const textDim = tok('--text-dim');
+  const textHi  = tok('--text-hi');
+  const bg      = tok('--bg');
 
   /* connector lines */
   for (let i = 0; i < nodes.length - 1; i++) {
-    const a = nodes[i], b = nodes[i+1];
-    const x1 = a.x + a.w, x2 = b.x;
-    const y  = a.y + a.h / 2;
+    const a = nodes[i], b = nodes[i + 1];
+    const x1 = a.x + a.w, x2 = b.x, y = a.y + a.h / 2;
     ctx.beginPath();
     ctx.moveTo(x1, y); ctx.lineTo(x2, y);
     ctx.strokeStyle = border;
-    ctx.lineWidth   = 1;
+    ctx.lineWidth = 1;
     ctx.setLineDash([4, 4]);
     ctx.stroke();
     ctx.setLineDash([]);
@@ -638,17 +652,17 @@ function drawPipeline() {
     const x1 = a.x + a.w, x2 = b.x, y = a.y + a.h / 2;
     const px = x1 + (x2 - x1) * p.prog;
     const alpha = Math.sin(p.prog * Math.PI);
+    const hex = Math.round(alpha * 220).toString(16).padStart(2, '0');
     ctx.beginPath();
-    ctx.arc(px, y, 2.5, 0, Math.PI*2);
-    ctx.fillStyle = amber + Math.round(alpha * 255).toString(16).padStart(2,'0');
+    ctx.arc(px, y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = amber + hex;
     ctx.fill();
   });
 
   /* nodes */
   nodes.forEach((nd, i) => {
     const isHov = i === hovered;
-    ctx.beginPath();
-    ctx.roundRect(nd.x, nd.y, nd.w, nd.h, 4);
+    rrect(ctx, nd.x, nd.y, nd.w, nd.h, 4);
     ctx.fillStyle   = isHov ? surf : bg;
     ctx.fill();
     ctx.strokeStyle = isHov ? amber : border;
@@ -680,8 +694,7 @@ function drawPipeline() {
     tx = Math.max(4, Math.min(tx, W - tw - 4));
     const ty = nd.y - th - 8;
 
-    ctx.beginPath();
-    ctx.roundRect(tx, ty, tw, th, 4);
+    rrect(ctx, tx, ty, tw, th, 4);
     ctx.fillStyle = surf;
     ctx.fill();
     ctx.strokeStyle = amber;
@@ -713,12 +726,17 @@ cvs.addEventListener('mouseleave', () => { hovered = -1; });
 
 const ro = new ResizeObserver(() => {
   resizePipeline();
-  drawPipeline();
 });
 ro.observe(cvs);
-resizePipeline();
-initParticles();
-animatePipeline();
+
+/* Defer init until layout is painted so offsetWidth is valid */
+requestAnimationFrame(() => {
+  resizePipeline();
+  initParticles();
+  pipelineReady = true;
+  animatePipeline();
+  drawSparklines();
+});
 
 /* ── Skill bars ───────────────────────────────────────────── */
 const SKILLS = [
