@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import anthropic
+from .bedrock_client import Anthropic
 
 
 EXTRACTION_PROMPT = """\
@@ -36,8 +36,8 @@ TECHNICAL_EXTRACTION_SCHEMA = {
 
 
 class StructuredExtractor:
-    def __init__(self, model: str = "claude-sonnet-4-6", max_tokens: int = 2048):
-        self.client = anthropic.Anthropic()
+    def __init__(self, model: str = "eu.amazon.nova-lite-v1:0", max_tokens: int = 2048):
+        self.client = Anthropic()
         self.model = model
         self.max_tokens = max_tokens
 

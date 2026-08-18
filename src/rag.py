@@ -5,8 +5,9 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
-import anthropic
 import mlflow
+
+from .bedrock_client import Anthropic
 
 RAG_SYSTEM_PROMPT = """\
 You are a document intelligence assistant specialized in technical and regulatory documents.
@@ -40,14 +41,14 @@ class RAGPipeline:
         self,
         vector_store,
         encoder,
-        model: str = "claude-sonnet-4-6",
+        model: str = "eu.amazon.nova-lite-v1:0",
         top_k: int = 5,
         score_threshold: float = 0.3,
         max_tokens: int = 2048,
     ):
         self.store = vector_store
         self.encoder = encoder
-        self.client = anthropic.Anthropic()
+        self.client = Anthropic()
         self.model = model
         self.top_k = top_k
         self.score_threshold = score_threshold

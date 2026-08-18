@@ -19,7 +19,7 @@ PDFs (arXiv / NIST / SEC)
         ▼
   src/vectorstore.py     ← FAISS IndexFlatIP (cosine similarity)
         │
-        ├──▶ src/rag.py          ← Claude LLM answer generation + MLflow tracking
+        ├──▶ src/rag.py          ← Amazon Nova (AWS Bedrock) answer generation + MLflow tracking
         └──▶ src/extractor.py    ← Structured JSON extraction (regulatory/technical)
                 │
                 ▼
@@ -41,7 +41,9 @@ PDFs (arXiv / NIST / SEC)
 
 ```bash
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY=sk-...
+# LLM calls run on Amazon Nova via AWS Bedrock (src/bedrock_client.py), not the Anthropic API —
+# no API key needed, just AWS credentials with bedrock:InvokeModel (`aws configure`, or an
+# instance role if deployed on EC2).
 
 # Download PDFs
 python3 scripts/download_data.py
@@ -97,7 +99,8 @@ mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db
 ### Docker
 ```bash
 docker build -t document-intelligence .
-docker run -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY -p 8000:8000 document-intelligence
+docker run -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+  -p 8000:8000 document-intelligence
 ```
 
 ## Tests
@@ -111,6 +114,6 @@ python3 -m pytest tests/ -v
 - **Chunking**: Fixed-size with sentence-boundary snapping prevents mid-sentence splits; paragraph mode available for structured docs
 - **Embeddings**: `all-MiniLM-L6-v2` (384-dim) balances quality and CPU inference speed; swap for `all-mpnet-base-v2` for higher accuracy
 - **Vector store**: FAISS `IndexFlatIP` on L2-normalized vectors = exact cosine similarity; upgrade to `IndexIVFFlat` for >1M chunks
-- **LLM**: Claude (`claude-sonnet-4-6`) for answer generation and structured extraction; `temperature=0` for deterministic extraction
+- **LLM**: Amazon Nova (`eu.amazon.nova-lite-v1:0`, via AWS Bedrock) for answer generation and structured extraction; `temperature=0` for deterministic extraction
 - **MLflow**: Tracks per-query latency, token usage, retrieval score, and chunking hyperparameters for drift monitoring
 - **Caching**: Page-level JSON cache in `data/processed/` avoids re-parsing unchanged PDFs
